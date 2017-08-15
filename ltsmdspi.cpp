@@ -125,22 +125,22 @@ void LtsMdSpi::OnRspSubL2OrderAndTrade(CSecurityFtdcRspInfoField *pRspInfo,
 void LtsMdSpi::OnRtnL2MarketData(
     CSecurityFtdcL2MarketDataField *pL2MarketData) {
   // printf("ticker header size = %d\n", sizeof(h)); // 24
-  writer_->write_market_data((const char *)pL2MarketData, sizeof(CSecurityFtdcL2MarketDataField));
+  writer_->write_market_data((const char *)pL2MarketData, sizeof(CSecurityFtdcL2MarketDataField), 1);
 }
 
 void LtsMdSpi::OnRtnL2Index(CSecurityFtdcL2IndexField *pL2Index) {
   // printf("ticker header size = %d\n", sizeof(h)); // 24
-  writer_->write_market_data((const char *)pL2Index, sizeof(CSecurityFtdcL2IndexField));
+  writer_->write_market_data((const char *)pL2Index, sizeof(CSecurityFtdcL2IndexField), 2);
 }
 
 void LtsMdSpi::OnRtnL2Order(CSecurityFtdcL2OrderField *pL2Order) {
   // printf("ticker header size = %d\n", sizeof(h)); // 24
-  writer_->write_market_data((const char *)pL2Order, sizeof(CSecurityFtdcL2OrderField));
+  writer_->write_market_data((const char *)pL2Order, sizeof(CSecurityFtdcL2OrderField), 3);
 }
 
 void LtsMdSpi::OnRtnL2Trade(CSecurityFtdcL2TradeField *pL2Trade) {
   // printf("ticker header size = %d\n", sizeof(h)); // 24
-  writer_->write_market_data((const char *)pL2Trade, sizeof(CSecurityFtdcL2TradeField));
+  writer_->write_market_data((const char *)pL2Trade, sizeof(CSecurityFtdcL2TradeField), 4);
 }
 
 void LtsMdSpi::subscribe_instruments_in_file_(const std::string &filePath,

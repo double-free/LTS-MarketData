@@ -50,9 +50,13 @@ void Writer::write_data(const char* data, size_t len) {
   std::memcpy((char *)mem_file_ptr_ + old_pos, data, len);
 }
 
-void Writer::write_market_data(const char* data, size_t len) {
+void Writer::write_market_data(const char* data, size_t len, uint32_t msg_id) {
   // write header
   size_t old_pos = cur_pos_.fetch_add(sizeof(common::tick_header) + len);
+
   common::tick_header::init((char *)mem_file_ptr_ + old_pos);
+  common::tick_header *header = (common::tick_header *)((char *)mem_file_ptr_ + old_pos);
+  header->msg_id = msg_id;
+  header->body_size = len;
   std::memcpy((char *)mem_file_ptr_ + old_pos + sizeof(common::tick_header), data, len);
 }

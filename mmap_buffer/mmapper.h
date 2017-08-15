@@ -10,7 +10,7 @@ public:
   void write_data(const char* data, size_t len);
 
   // specified for market data, add time stamp
-  void write_market_data(const char* data, size_t len);
+  void write_market_data(const char* data, size_t len, uint32_t msg_id);
 
 private:
   size_t size_lim_;
