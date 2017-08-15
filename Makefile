@@ -9,7 +9,7 @@ CC=g++ -std=c++14
 CC_FLAG=-Wall -g -O2
 
 PRG=MarketMachine
-OBJ=main.o ltsmdspi.o ringbuffer.o ThreadPool/thread_pool.o\
+OBJ=main.o ltsmdspi.o mmap_buffer/mmapper.o\
 		ThirdParty/inih/ini.o ThirdParty/inih/INIReader.o
 
 $(PRG):$(OBJ)

@@ -1,35 +1,43 @@
 #include <cstdio>
 #include <cstring>
-#include <thread>
+#include <csignal>
+
+#include <mutex>
+#include <condition_variable>
 
 #include "ltsmdspi.h"
 
+// kill -l: signal 1~64
+int signaled = 0;
+std::mutex signal_mu;
+std::condition_variable signal_cond;
+
+void signal_handler(int sig) {
+  // use signal handler to avoid unsafe quit
+  std::lock_guard<std::mutex> lg(signal_mu);
+  signaled = sig;
+  signal_cond.notify_one();
+}
+
 int main(int argc, const char *argv[]) {
-  /*
-  printf("Size of:\n\tMarket Data: %lu\n\tMarket Index: %lu\n\tMarket Order: "
-         "%lu\n\tMarket Trade: %lu\n",
-         sizeof(CSecurityFtdcL2MarketDataField), // 847
-         sizeof(CSecurityFtdcL2IndexField),      // 126
-         sizeof(CSecurityFtdcL2OrderField),      // 81
-         sizeof(CSecurityFtdcL2TradeField));     // 91
-  */
-  int mode;
-  if (argc > 2) {
-    printf("Usage: %s SH\n\tor: %s SZ\n\tor: %s ALL(default)\n",
-            argv[0], argv[0], argv[0]);
+  if (argc != 2) {
+    printf("Usage: %s <config file>\n", argv[0]);
     exit(-1);
-  } else if ( argc == 1) {
-    mode = 0;
-  } else {
-    mode = LtsMdSpi::whichMode(argv[1]);
-    if (mode == -1) {
-      printf("Usage: %s SH\n\tor: %s SZ\n\tor: %s ALL(default)\n",
-            argv[0], argv[0], argv[0]);
-      exit(-1);
-    }
   }
 
-  LtsMdSpi spi(mode);
+  // set handler for signal
+  signal(SIGINT, signal_handler);
+  signal(SIGTERM, signal_handler);
+
+  LtsMdSpi spi(argv[1]);
+  // LtsMdSpi spi(std::string(argv[1]));
   spi.start_serve();
+
+  {
+    std::unique_lock<std::mutex> ul(signal_mu);
+    signal_cond.wait(ul, []{return signaled != 0;});
+  }
+
+  printf("Terminated by signal: %d\n", signaled);
   return 0;
 }

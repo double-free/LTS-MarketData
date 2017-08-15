@@ -5,16 +5,16 @@
 #include "ThirdParty/inih/INIReader.h"
 
 #include "LTS_API/SecurityFtdcL2MDUserApi.h"
-#include "ringbuffer.h"
+#include "mmap_buffer/mmapper.h"
 
 using namespace _LTS_;
 
 class LtsMdSpi : public CSecurityFtdcL2MDUserSpi {
 public:
-  explicit LtsMdSpi(int mode);
+  explicit LtsMdSpi(const std::string& config_file);
   ~LtsMdSpi();
 
-  static int whichMode(const char *s);
+  static std::string getCurrentDate();
 
   void start_serve();
 
@@ -46,10 +46,6 @@ protected:
 private:
   CSecurityFtdcL2MDUserApi *api_;
   INIReader config_;
-  // std::set<std::string> subscriptions_;
-  RingBuffer ring_buffer_;
-
-  int mode_;
 
   // requestID
   int reqID_;
@@ -59,7 +55,5 @@ private:
   void subscribe_instruments_in_file_(const std::string &filePath,
                                       const std::string &exchangeID);
 
-  // make sure body is writed after header
-  std::mutex mu_;
-
+  mem::Writer* writer_;
 };
