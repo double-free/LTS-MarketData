@@ -21,7 +21,7 @@ void signal_handler(int sig) {
 
 int main(int argc, const char *argv[]) {
   if (argc != 2) {
-    printf("Usage: %s <config file>\n", argv[0]);
+    fprintf(stdout, "Usage: %s <config file>\n", argv[0]);
     exit(-1);
   }
 
@@ -38,6 +38,6 @@ int main(int argc, const char *argv[]) {
     signal_cond.wait(ul, []{return signaled != 0;});
   }
 
-  printf("Terminated by signal: %d\n", signaled);
+  fprintf(stderr, "Terminated by signal: %d\n", signaled);
   return 0;
 }

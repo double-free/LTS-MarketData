@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "ltsmdspi.h"
+#include "logger.hpp"
 
 std::string LtsMdSpi::getCurrentDate() {
   std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -19,28 +20,39 @@ std::string LtsMdSpi::getCurrentDate() {
 
 LtsMdSpi::LtsMdSpi(const std::string& config_file) :
           config_(config_file) {
-  printf("username: %s, password: %s\n",
-          config_.Get("LoginField", "UserID", "").c_str(),
-          config_.Get("LoginField", "Password", "").c_str());
-  std::string dataDir = config_.Get("MarketData", "SaveDir", "");
+  std::string dataDir = config_.Get("SavePath", "MdDir", "");
+  std::string logDir = config_.Get("SavePath", "LogDir", "");
+
+  std::string currentDate = getCurrentDate();
+
   if (access(dataDir.c_str(), F_OK && W_OK) < 0) {
     mkdir(dataDir.c_str(), 0751);
   }
-  std::string unique_path = dataDir + "MarketData_" + getCurrentDate();
+  std::string md_path = dataDir + "MarketData_" + currentDate;
+
+  if (access(logDir.c_str(), F_OK && W_OK) < 0) {
+    mkdir(logDir.c_str(), 0751);
+  }
+  std::string output_path = logDir + "output_" + currentDate;
+  std::string error_path = logDir + "error_" + currentDate;
+  freopen(output_path.c_str(), "w", stdout);
+  freopen(error_path.c_str(), "w", stderr);
 
   // 以 1GB 为单位
-  writer_ = new mem::Writer(config_.GetInteger("Buffer", "InitSize", 1)<<30, unique_path);
+  writer_ = new mem::Writer((size_t)config_.GetInteger("Buffer", "InitSize", 1)<<30, md_path);
 
   reqID_ = 0;
   api_ = CSecurityFtdcL2MDUserApi::CreateFtdcL2MDUserApi();
-  printf("Market data spi created...\n");
+  common::Logger::t_out("Market data spi created...\n");
 }
 
 LtsMdSpi::~LtsMdSpi() {
 
   api_->Release();
   delete writer_;
-  printf("Market data spi deleted...\n");
+  common::Logger::t_out("Market data spi deleted...\n");
+  fclose(stdout);
+  fclose(stderr);
 }
 
 void LtsMdSpi::start_serve() {
@@ -62,7 +74,7 @@ void LtsMdSpi::OnFrontConnected() {
   strncpy(loginField.BrokerID, BrokerID.c_str(), sizeof(loginField.BrokerID));
   strncpy(loginField.UserID, UserID.c_str(), sizeof(loginField.UserID));
   strncpy(loginField.Password, Password.c_str(), sizeof(loginField.Password));
-  printf("Login with: user = %s, pwd = %s\n", loginField.UserID, loginField.Password);
+  common::Logger::t_out("Login with: user = %s, pwd = %s\n", loginField.UserID, loginField.Password);
   api_->ReqUserLogin(&loginField, reqID_++);
 }
 
@@ -78,7 +90,7 @@ void LtsMdSpi::OnRspUserLogin(CSecurityFtdcUserLoginField *pUserLogin,
     subscribe_instruments_in_file_(SH_FILE, SH_ID);
     subscribe_instruments_in_file_(SH_FILE, SZ_ID);
   } else {
-    printf("Login failed: %s(errno: %d)\n", pRspInfo->ErrorMsg,
+    common::Logger::t_err("Login failed: %s(errno: %d)\n", pRspInfo->ErrorMsg,
            pRspInfo->ErrorID);
   }
 }
@@ -89,10 +101,10 @@ void LtsMdSpi::OnRspSubL2MarketData(
     CSecurityFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
   if (pRspInfo == nullptr || pRspInfo->ErrorID == 0) {
     if (bIsLast) {
-      printf("Subscribe to instruments (data) succeed.\n");
+      common::Logger::t_out("Subscribe to instruments (data) succeed.\n");
     }
   } else {
-    printf("Subscribe market data failed: %s(errno: %d)\n", pRspInfo->ErrorMsg,
+    common::Logger::t_err("Subscribe market data failed: %s(errno: %d)\n", pRspInfo->ErrorMsg,
            pRspInfo->ErrorID);
   }
 }
@@ -102,10 +114,10 @@ void LtsMdSpi::OnRspSubL2Index(
     CSecurityFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
   if (pRspInfo == nullptr || pRspInfo->ErrorID == 0) {
     if (bIsLast) {
-      printf("Subscribe to instruments (index) succeed.\n");
+      common::Logger::t_out("Subscribe to instruments (index) succeed.\n");
     }
   } else {
-    printf("Subscribe market index failed: %s(errno: %d)\n", pRspInfo->ErrorMsg,
+    common::Logger::t_err("Subscribe market index failed: %s(errno: %d)\n", pRspInfo->ErrorMsg,
            pRspInfo->ErrorID);
   }
 }
@@ -114,10 +126,10 @@ void LtsMdSpi::OnRspSubL2OrderAndTrade(CSecurityFtdcRspInfoField *pRspInfo,
                                        int nRequestID, bool bIsLast) {
   if (pRspInfo == nullptr || pRspInfo->ErrorID == 0) {
     if (bIsLast) {
-      printf("Subscribe to instruments of (order) succeed.\n");
+      common::Logger::t_out("Subscribe to instruments of (order) succeed.\n");
     }
   } else {
-    printf("Subscribe market order failed: %s(errno: %d)\n", pRspInfo->ErrorMsg,
+    common::Logger::t_err("Subscribe market order failed: %s(errno: %d)\n", pRspInfo->ErrorMsg,
            pRspInfo->ErrorID);
   }
 }
@@ -168,7 +180,7 @@ void LtsMdSpi::subscribe_instruments_in_file_(const std::string &filePath,
 }
 
 void LtsMdSpi::OnFrontDisconnected(int reason) {
-  printf("Disconnected from front server (reason: %d).\n\t"
+  common::Logger::t_err("Disconnected from front server (reason: %d).\n\t"
         "Reconnecting...\n", reason);
   std::string addr = config_.Get("FrontServer", "Address", "");
   api_->RegisterFront((char *)addr.c_str());

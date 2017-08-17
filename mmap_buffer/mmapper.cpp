@@ -6,6 +6,7 @@
 
 #include "mmapper.h"
 #include "../timing.hpp"
+#include "../logger.hpp"
 
 using namespace mem;
 
@@ -14,7 +15,7 @@ Writer::Writer(size_t size_lim, std::string file_path):
 {
   int fd = open(file_path_.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0644);
   if (fd == -1) {
-    printf("Open file %s failed.\n", file_path_.c_str());
+    common::Logger::t_err("Open file %s failed.\n", file_path_.c_str());
     exit(-1);
   }
 
@@ -25,7 +26,7 @@ Writer::Writer(size_t size_lim, std::string file_path):
 
   mem_file_ptr_ = mmap(0, size_lim_, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
   if (mem_file_ptr_ == MAP_FAILED) {
-    printf("Map failed.\n");
+    common::Logger::t_err("mmap failed.\n");
     exit(-1);
   }
 
@@ -35,11 +36,11 @@ Writer::Writer(size_t size_lim, std::string file_path):
 
 Writer::~Writer() {
   if (munmap(mem_file_ptr_, size_lim_) == -1) {
-    printf("Unmap failed.\n");
+    common::Logger::t_err("munmap failed.\n");
   }
   // resize the file to actual size
   truncate(file_path_.c_str(), cur_pos_);
-  printf("Safely quit mmap\n");
+  common::Logger::t_out("Safely quit mmap\n");
   mem_file_ptr_ = nullptr;
 }
 
@@ -73,15 +74,15 @@ void Writer::remap(size_t new_size) {
 
   void* new_addr = mremap(mem_file_ptr_, size_lim_, new_size, MREMAP_MAYMOVE);
   if (new_addr == MAP_FAILED) {
-    printf("Panic when try to remap...\n");
-    return;
+    common::Logger::t_err("failed when try to remap...\n");
+    exit(-1);
   }
 
 
   // extend file
   int fd = open(file_path_.c_str(), O_RDWR);
   if (fd == -1) {
-    printf("Open file %s failed.\n", file_path_.c_str());
+    common::Logger::t_err("open file %s failed.\n", file_path_.c_str());
     exit(-1);
   }
   lseek(fd, new_size-1, SEEK_SET);
@@ -89,12 +90,12 @@ void Writer::remap(size_t new_size) {
   close(fd);
 
   if (new_addr != mem_file_ptr_) {
-    printf("REMAP: map address changed from %p to %p...\n", mem_file_ptr_, new_addr);
+    common::Logger::t_out("REMAP: map address changed from %p to %p...\n", mem_file_ptr_, new_addr);
     mem_file_ptr_ = new_addr;
   }
   size_lim_ = new_size;
 
-  printf("REMAP: extend limit to %08x\n", new_size);
+  common::Logger::t_out("REMAP: extend limit to %08x\n", new_size);
 }
 
 
